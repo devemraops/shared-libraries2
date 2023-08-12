@@ -1,0 +1,57 @@
+@Library('your-shared-library-name') _
+
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = '' // Placeholder for dynamic image name
+    }
+
+    stages {
+        stage('Unit Test') {
+            steps {
+              decisionWrapper('Unit Test') {
+                gradleUnitTest()
+              }
+            }
+        }
+
+        stage('Integration Test') {
+            steps {
+              decisionWrapper('Integration Test') {
+                gradleIntegrationTest()
+              }
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                script {
+                    env.IMAGE_NAME = buildImage()
+                }
+            }
+        }
+
+        stage('Blackduck Scan') {
+            steps {
+              decisionWrapper('Blackduck Scan') {
+                blackduckScan('.')
+              }
+            }
+        }
+
+        stage('Veracode Scan') {
+            steps {
+              decisionWrapper('Veracode Scan') {
+                veracodeScan('.')
+              }
+            }
+        }
+
+        stage('Push to Artifactory') {
+            steps {
+                pushToArtifactory(env.IMAGE_NAME, 'http://my.artifactory.url')
+            }
+        }
+    }
+}
