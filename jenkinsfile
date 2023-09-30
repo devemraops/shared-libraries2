@@ -1,0 +1,16 @@
+stage ('HelmLint and K8s validator') {
+  steps {
+    script {
+      def config = [
+        appName: params.APP_NAME,
+        branchName: env.BRANCH_NAME,
+        commitSha: env.GIT_COMMIT.substring(0, 7),
+        buildNo: env.BUILD_NUMBER,
+        imageGroup: params.IMAGE_GROUP,
+        chartDir: env.CHART_DIR
+      ]
+
+      helmLint(config)
+    }
+  }
+}

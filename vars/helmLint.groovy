@@ -1,26 +1,27 @@
-def call() {
+def call(Map config = [:]) {
     script {
-        // Get the docker-compose.yml content from the shared library
-        def dockerComposeFile = libraryResource('docker-compose.yml')
+        def branchName = config.branchName ?: ''
+        def commitSha = config.commitSha ?: ''
+        def buildNo = config.buildNo ?: ''
+        def imageGroup = config.imageGroup ?: ''
+        def appName = config.appName ?: ''
+        def dockerRegistry = config.dockerRegistry ?: ''
 
-        // Write the content to a temporary file
-        writeFile file: 'temp_docker-compose.yml', text: dockerComposeFile
+        String imageName, imageTag
 
-        // Run all services defined in the docker-compose.yml file
-        sh "docker-compose -f temp_docker-compose.yml up -d"
+        if (branchName == 'master') {
+            imageName = "${imageGroup}/${appName}"
+            imageTag = "${imageGroup}/${appName}-${buildNo}-${commitSha}"
+        } else {
+            imageName = "${imageGroup}-dev/${appName}"
+            imageTag = "${imageGroup}-dev/${appName}-${buildNo}-${commitSha}"
+        }
+
+        env.IMAGE_NAME = imageName
+        env.IMAGE_TAG = imageTag
+
+        sh """
+            docker build --label "occ.vcs-ref=${appName}" -t ${dockerRegistry}/${imageTag} -t ${dockerRegistry}/${imageName}:latest .
+        """
     }
 }
-
-
-VERSION_PREFIX_DEV ?= 0.0
-VERSION_SUFFIX_DEV ?= dev${BUILD_NUMBER}-${GIT_COMMIT[0..6]}-${env.BRANCH_NAME?.replaceAll('/', '-')
-VERSION_PREFIX ?= 0.1
-
-if env.BRANCH_NAME == master:
-    IMAGE_NAME = "${IMAGE_GROUP}/${params.APP_NAME}-${BUILD_NUMBER}"
-    PUBLISH_LATEST = true
-else:
-    IMAGE_NAME = "${params.APP_NAME}-dev-${BUILD_NUMBER}"
-done
-
-IMAGE_TAG = ${IMAGE_NAME}:${}

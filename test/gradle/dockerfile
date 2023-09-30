@@ -1,0 +1,91 @@
+FROM platform/base/java-jdk:11
+
+COPY . /app/
+WORKDIR /app
+
+RUN chmod +x gradlew
+RUN ./gradlew test --no-daemon
+RUN ./gradlew bootjar --no-daemon
+RUN ./gradlew test jacocoTestReport --no-daemon
+RUN cp build/libs/*.jar ./
+
+ARG VERSION
+ARG JAVA_OPTS
+ENV VERSION ${VERSION}
+ENV JAVA_OPTS ${JAVA_OPTS}
+
+ENTRYPOINT java ${JAVA_OPTS} $(enable_appdynamics.sh) -jar "hello-world.jar"
+
+#############################################################################################################
+############# Optimize above docker image#####################################################################
+# Stage 1: Build the application
+FROM platform/base/java-jdk:11 as builder
+
+COPY . /app/
+WORKDIR /app
+
+RUN chmod +x gradlew
+RUN ./gradlew test --no-daemon
+RUN ./gradlew bootjar --no-daemon
+
+# Stage 2: Create a minimal runtime image
+FROM platform/base/java-jdk:11
+
+WORKDIR /app
+
+# Copy the JAR file from the builder stage
+COPY --from=builder /app/build/libs/*.jar ./hello-world.jar
+
+ARG VERSION
+ARG JAVA_OPTS
+ENV VERSION ${VERSION}
+ENV JAVA_OPTS ${JAVA_OPTS}
+
+ENTRYPOINT java ${JAVA_OPTS} -jar "hello-world.jar"
+
+#############################################################################################################
+############# Run container without root user#####################################################################
+
+# Stage 1: Build the application
+FROM platform/base/java-jdk:11 as builder
+
+# Create a non-root user
+RUN groupadd -r myuser && useradd -r -g myuser myuser
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the application source code
+COPY . .
+
+# Change ownership of the application directory to the non-root user
+RUN chown -R myuser:myuser /app
+
+USER myuser
+
+# Build the application
+RUN chmod +x gradlew
+RUN ./gradlew test --no-daemon
+RUN ./gradlew bootjar --no-daemon
+
+# Stage 2: Create a minimal runtime image
+FROM platform/base/java-jdk:11
+
+# Create a non-root user
+RUN groupadd -r myuser && useradd -r -g myuser myuser
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the JAR file from the builder stage
+COPY --from=builder --chown=myuser:myuser /app/build/libs/*.jar ./hello-world.jar
+
+ARG VERSION
+ARG JAVA_OPTS
+ENV VERSION ${VERSION}
+ENV JAVA_OPTS ${JAVA_OPTS}
+
+USER myuser
+
+# Run the application
+CMD ["java", "${JAVA_OPTS}", "-jar", "hello-world.jar"]
