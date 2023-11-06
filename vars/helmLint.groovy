@@ -20,6 +20,8 @@ def call(Map config = [:]) {
         env.IMAGE_NAME = imageName
         env.IMAGE_TAG = imageTag
 
+        def myscript = libraryResource('')
+
         sh """
             docker build --label "occ.vcs-ref=${appName}" -t ${dockerRegistry}/${imageTag} -t ${dockerRegistry}/${imageName}:latest .
         """

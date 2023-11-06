@@ -1,16 +1,29 @@
-stage ('HelmLint and K8s validator') {
-  steps {
-    script {
-      def config = [
-        appName: params.APP_NAME,
-        branchName: env.BRANCH_NAME,
-        commitSha: env.GIT_COMMIT.substring(0, 7),
-        buildNo: env.BUILD_NUMBER,
-        imageGroup: params.IMAGE_GROUP,
-        chartDir: env.CHART_DIR
-      ]
+def call (config) {
+  // Call the function with a configuration object.
+  def pipelineParams = [:]
+  config.resolveStrategy = Closure.DELEGATE_FIRST
+  config.delegate = pipelineParams
+  config()
 
-      helmLint(config)
+
+  pipeline {
+
+    agent any
+
+    options {
+      buildDiscarder()
+      timestamps()
+      disableConcurrentBuilds()
+    }
+
+    environment {}
+
+    parameters {}
+
+    stages {
+      stage('first') {
+        
+      }
     }
   }
 }

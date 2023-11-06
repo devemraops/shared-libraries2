@@ -36,3 +36,6 @@ def performanSonarScan(String sonarImage, Map config = [:]) {
       }
   }
 }
+
+
+aws sts get-session-token --serial-number arn:aws:iam::541906215541:mfa/1password-emrah --token-code 175862
