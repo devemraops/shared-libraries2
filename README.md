@@ -1,4 +1,4 @@
-![Alt text](image-1.png)
+                                ![Alt text](image-1.png)
 # Ovation Environment Management
 ### Overview
 `This Jenkins Shared Library is designed to streamline and standardize CI processes across multiple Gradle projects in our organization. It encapsulates common Jenkins pipeline steps, utilities, and configurations, making them reusable and easy to maintain.`
