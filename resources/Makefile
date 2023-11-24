@@ -69,3 +69,24 @@ test_artifacts:
 		docker cp test_results:/app/build/reports/jacoco/test/ report/jacoco || true
 
 .env.%: env.%.template
+	$(MAKE) envfile TYPE=$* ENVFILE=env.$*.template
+
+.PHONY
+envfile: # generate .env.* file
+	cp -f $(ENVFILE) .env.$(TYPE)
+
+	.PHONY: clean
+clean: ## removed unneeded files
+		sh scripts/docker_cleanup.sh sonar_cid.txt
+		sh scripts/docker_cleanup.sh veracode_cid.txt
+		${DOCKER_COMPOSE} run --rm git $(MAKE) _clean
+		-docker rmi -f ${IMAGE_TAG} ${IMAGE_NAME}:latest
+		-docker rmi -f $(VERACODE_IMAGE_NAME)
+		-docker rmi -f $(SONAR_SCANNER_IMAGE_NAME)
+		-docker rmi -f $(BLACKDUCK_IMAGE_NAME)
+		-docker rmi -f $(BLACKDUCK_DOCKER_IMAGE_NAME)
+
+.PHONY: _clean
+_clean:
+	git clean -ffdx
+	rm -rf .scannerwork
