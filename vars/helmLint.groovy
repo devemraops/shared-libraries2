@@ -8,22 +8,26 @@ def call(Map config = [:]) {
         def dockerRegistry = config.dockerRegistry ?: ''
 
         String imageName, imageTag
+// read scripts in resources folder
+        def myscript = libraryResource('scripts/prepreqs.sh')
+        writeFile file: 'scripts/prereqs.sh', text: myScript
+        sh 'chmod +x scripts/prereqs.sh'
+        sh 'scripts/prereqs.sh'
+//  read docker compose file in resources folder
+        def dockerComposeFile = libraryResource('docker-compose.yml')
+        writeFile file: 'temp_docker-compose.yml', text: dockerComposeFile
+//  Pass this environment variable to makefile lint block in resources folder, and run it docker-compose.yml in makefile
+        env.DOCKER_COMPOSE_FILE = 'temp_docker-compose.yml'
 
-        if (branchName == 'master') {
-            imageName = "${imageGroup}/${appName}"
-            imageTag = "${imageGroup}/${appName}-${buildNo}-${commitSha}"
-        } else {
-            imageName = "${imageGroup}-dev/${appName}"
-            imageTag = "${imageGroup}-dev/${appName}-${buildNo}-${commitSha}"
-        }
-
-        env.IMAGE_NAME = imageName
-        env.IMAGE_TAG = imageTag
-
-        def myscript = libraryResource('')
-
-        sh """
-            docker build --label "occ.vcs-ref=${appName}" -t ${dockerRegistry}/${imageTag} -t ${dockerRegistry}/${imageName}:latest .
-        """
+        def makefileContent = libraryResource('Makefile')
+        writeFile file: 'Makefile', text: makefileContent
+        sh 'make lint'
     }
 }
+
+.PHONY: file
+
+file:
+  touch build.properties
+
+  throws error says missing separator

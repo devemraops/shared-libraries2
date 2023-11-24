@@ -38,4 +38,30 @@ def performanSonarScan(String sonarImage, Map config = [:]) {
 }
 
 
-aws sts get-session-token --serial-number arn:aws:iam::541906215541:mfa/1password-emrah --token-code 175862
+------------user side jenkinsfile appeerance-------
+
+stage('sonarAnalysis'){
+  steps {
+    script {
+      sonarQubeScan(appName: "${params.APP_NAME}", runSonarAnalysis: "${params.RUN_SONAR_ANALYSIS}")
+    }
+  }
+}
+
+---------------------------- sonarQubeScan.groovy in shared library ------------------
+def call(Map config = [:]) {
+  script {
+    if (config.runSonarAnalysis == 'true') {
+      withSonarQubeEnv('SonarQubeEE') {
+        def sonarParams = readJSON text: SONARQUBE_SCANNER_PARAMS
+        env.SONAR = sonarParams["sonar.login"]
+        withEnv(["SANDBOX_NAME=${config.sandboxName}"])
+        retry(3) {
+          sh 'make sonar_scan'
+        }
+      }
+    }
+  }
+}
+
+

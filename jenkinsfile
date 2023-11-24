@@ -21,9 +21,7 @@ def call (config) {
     parameters {}
 
     stages {
-      stage('first') {
-        
-      }
+      stage('first') {}
     }
   }
 }
