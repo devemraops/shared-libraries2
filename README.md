@@ -1,5 +1,4 @@
-![Alt text](image-2.png)
-# Ovation Environment Management
+# ![Alt text](image-2.png) Ovation Environment Management
 ### Overview
 #### Gradle Jenkins Shared Library 
 
