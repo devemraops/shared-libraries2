@@ -1,0 +1,216 @@
+pipeline {
+
+  options {
+    buildDiscarder(logRotator(daysToKeepStr: '30', numberToKeepStr: '30'))
+  }
+
+  agent {
+    label 'linux'
+  }
+
+  parameters {
+    choice(name:'CREATE_JIRA_TICKETS', description: 'Do you want to create jira tickets?', choice: ['No', 'Yes']) // first value (NO) is the default
+    string(name:'VERIFICATION_BRANCH', description: 'Which branch should verification rules be pulled from?', defaultValue: 'master')
+    string(name:'BLACKDUCK_SEARCH_DEPTH', description: 'how deep should the blackduck scan within a folder structure?', defaultValue: '10')
+    string(name:'SONARQUBE_LANGUAGE',  description: 'What language should sonarqube use for its quality profile?', defaultValue: 'javascript')
+    string(name:'ENVIRONMENT_RULES', description: 'What environment do you want to verify against?' defaultValue: 'prod')
+    string(name:'RELEASE_NOTE_PAGE_ID', description: 'Confluence page ID number', defaultValue: '928474623')
+    string(name:'TEST_SCOPE_PAGE_ID', description: 'Confluence page ID number for Test Scope', defaultValue: '468375693')
+    string(name:'CATEGORY_ARG', description: 'What category do you want to use?', choices: ['', 'compliance', 'security', 'quality'])
+  }
+// Set up global environment vars for the pipeline
+  environment {
+    ARTIFACTORY_URL = "https://artifactory.com/repo"
+    ARTIFACTORY = credentials('PUBLISH_TO_ARTIFACTORY')
+    BLACKDUCK_PROJECT_NAME = "EMR-49 UI UX"
+    BLACKDUCK_VERSION_NAME = "ds-core"
+    DATE_VERSION = new Date().format('yyyy-MM-dd')
+    DOCKER_REGISTRY_URL = "https://docker.com/repo"
+    DOCKER_COMPOSE =  "${WORKSPACE}/docker-compose"
+    GITHUB_CREDS = credentials('JENKINSCI')
+    JIRA_CREDS = credentials('JIRA-REST-API')
+    JIRA_USER = "${JIRA_CREDS_USER}"
+    JIRA_PASS = "${JIRA_CREDS_PSW}"
+    MODULE_NAME = "ds-core"
+    PUBLISH_TO_MODULE_TO_ARTIFACTORY = false
+    PUBLISH_BOOKSTORE_TO_ARTIFACTORY = false
+    PROXY = credentials("PROXY")
+    PROXY_PORT = "proxy.devemraops.com"
+    PROXY_PORT = "8080"
+    PROPERTIES_FILE = "${WORKSPACE}/build.properties"
+    SNOW_CREDS = credentials('SNOW')
+    SONARSCANNER = "sonar-scanner-cli"
+    SONAR_BRANCH_NAME = "${GIT_BRANCH}"
+    SONAR_LANGUAGE = "javascript"
+    STRICT_MODE = "false"
+  }
+
+  stages {
+    stage('Pre-Build') {
+      steps {
+        script {
+          PUBLISH_NPM_MODULE_TO_ARTIFACTORY = BRANCH_NAME.equals('master')
+          PUBLISH_BOOKSTORE_TO_ARTIFACTORY = BRANCH_NAME.equals('master')
+          echo "JF: Will this build publish npm module Artifactory? ${PUBLISH_NPM_MODULE_TO_ARTIFACTORY}"
+          echo "JF: Will this build publish npm module Artifactory? ${PUBLISH_BOOKSTORE_TO_ARTIFACTORY}"
+          // setfacl command below sets an ACL on all created files/dirs and enables Jenkins to clean the workspace later.
+          sh 'setfacl -dm "u:$(id -u):rwX" ${PWD}'
+        }
+      }
+    }
+    // This stage will do a Helm lint as well as a kubernetes validator on the k8s yaml files produced by helm
+    stage('Lint  Helm and K8s') {
+      steps {
+        echo "Helm lint as well as a kubernetes validator on the k8s yaml files produced by helm."
+        sh 'make lint'
+      }
+    }
+    // this stage builds docker image with the application
+    stage('Build Docker Image') {
+      steps {
+        script {
+            echo "Building Docker Image"
+            sh 'make build'
+        }
+      }
+    }
+    // This stage will run Jest tests on Docker container
+    stage('Test') {
+      steps {
+        script {
+          echo "Running Jest test suite in Docker image..."
+          sh 'make test_artifacts'
+          sh 'zip -r report.zip report'
+          archiveArtifacts artifacts: 'report.zip'
+        }
+      }
+    }
+    // This stage will package the helm charts
+    stage('Package Helm Chart') {
+      steps {
+        echo 'Packaging helm chart...'
+        sh 'make helm'
+      }
+    }
+    // this stage invokes the Sonarqube analysis
+    stage('Sonar Analysis') {
+      environment {
+        SONARSCANNER = 'sonar-scanner-cli'
+        SONAR_BRANCH_NAME = '${GIT_BRANCH}'
+      }
+      steps {
+        withSonarQubeEnv('SonarQubeEE') {
+          script {
+            def sonarParams = readJSON text: SONARQUBE_SCANNER_PARAMS
+            env.SONAR = sonarParams["sonar.login"]
+          }
+          echo "Beginning sonar scan..."
+          sh 'make sonar_scan'
+        }
+      }
+    }
+    // This stage requires manual approval to ensure quality review from sonar analysis.
+    stage('Sonar Quality Gate') {
+      steps {
+        echo "Waiting for quality gate manual approval..."
+          withSonarQubeEnv('SonarQubeEE') {
+            timeout(time: 180, unit: 'SECONDS') {
+              waitForQualityGate abortPipeline: true
+            }
+          }
+      }
+    }
+    // This stage Invokes the blackduck security scans.
+    stage('Blackduck App Scan') {
+      when {
+        expression {
+           return BRANCH_NAME.startsWith("release") || BRANCH_NAME == "master"
+        }
+      }
+      environment {
+        BLACKDUCK_CREDS = credentials('BLACKDUCK')
+        // BLACKDUCK_INPUT_FILE --> this represents the path to the file **on the host** that blackduck should scan.
+        // e.g for java, it would be the path to the JAR file.
+        BLACKDUCK_INPUT_FILE = "${WORKSPACE}/${MODULE_NAME}.zip"
+        // BLACKDUCK_FILE_PATH --> this represents the path to the file **in the container** that blackduck should scan.
+        // e.g `/app/<filename>`
+        BLACKDUCK_FILE_PATH = "/scan//${MODULE_NAME}.zip"
+        BLACKDUCK_SEARCH_DEPTH = "${BLACKDUCK_SEARCH_DEPTH}"
+      }
+      steps {
+        echo "Beginning BlackDuck scan..."
+        sh 'make blackduck_scan'
+      }
+    }
+    //Veracode scan
+    stage('Veracode Scan') {
+      when {
+        expression {
+          return BRANCH_NAME.startsWith("release") || BRANCH_NAME == "master"
+        }
+      }
+      environment {
+        Veracode = credentials('veracode-scan')
+        app_id = "86897"
+        sandbox_name = "${appName}-sandbox"
+        veracode_timeout = "90"
+        veracode_imput_file = "${WORKSPACE}/${SERVICE_NAME}.jar"
+        veracode_file_path = "/app/${SERVICE_NAME}.jar"
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'JENKINS-API-USER', usernameVariable: 'JAPI_USER', passwordVariable: 'JAPI_TOKEN')]) {
+          sh 'make veracode_scan'
+        }
+      }
+    }
+    stage('Sysdig Container Scan') {
+      when {
+        expression {
+          return BRANCH_NAME.startsWith("release") || BRANCH_NAME == "master"
+        }
+      }
+      environment {
+        PROXY_URL = "http://$PROXY_HOST:$PROXY_PORT"
+        SYSDIG_CREDS = credentials('SYSDIG-API')
+      }
+      steps {
+        sh 'make sysdig_scan'
+      }
+    }
+
+    // Publish docker image dockerHub
+    stage('Publish Docker') {
+      steps {
+         withDockerRegistry([credentialsId:'PUBLISH_TO_DOCKER', url: "${DOCKER_REGISTRY_URL}"]) {
+          echo "JF: Publishing bookstore Docker Image to artifactory..."
+          sh 'make push'
+          }
+    }
+    // this stage tags the docker image in artifactory
+    stage('Artifactory tagging') {
+      steps {
+        script {
+          sh 'echo ${PUBLISH_BOOKSTORE_TO_ARTIFACTORY}'
+          sh 'echo ${BRANCH_NAME}'
+          if (PUBLISH_STORYBOOK_TO_ARTIFACTORY) {
+            def props = readProperties file: "${PROPERTIES_FILE}"
+            env.ARTIFACT_PATH = props['IMAGE_PATH']
+            env.BLACKDUCK_PROJECT_NAME = props['BLACKDUCK_PROJECT_NAME']
+            env.BLACKDUCK_VERSION_NAME = props ['BLACKDUCK_VERSION_NAME']
+            env.IMAGE_PATH = props['IMAGE_PATH']
+            env.JIRA_ISSUE_ID = props['JIRA_ISSUE_ID']
+            env.SONARQUBE_LANGUAGE = props['SONARQUBE_LANGUAGE']
+            env.SONAR_PROJECT_KEY = props['SONAR_PROJECT_KEY']
+            env.SONAR_PROJECT_VERSION = props['SONAR_PROJECT_VERSION']
+            env.VERA_BUILD_ID = props['VERA_BUILD_ID']
+            env.SYSDIG_REPORT_ID = props['SYSDIG_REPORT_ID']
+            sh "make tag_artifacts"
+
+          } else {
+            echo "JF: This build did NOT tag anything in Artifactory"
+          }
+        }
+      }
+    }
+  }
+}

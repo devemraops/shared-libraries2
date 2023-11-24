@@ -1,0 +1,27 @@
+version: '3'
+services:
+  bash:
+    network_mode: bridge
+    image: ${IMAGE_TAG}
+    entrypoint: /bin/bash
+  lint:
+    network_mode: bridge
+    image: application/sre/k8s-validator:helm5-stable
+    entrypoint: /bin/sh
+    volumes:
+      - ${PWD}/:/occ/content
+  helm:
+    network_mode: bridge
+    image: application/sre/k8s-validator:helm5-stable
+    volumes:
+      - ${PWD}/:/occ/content
+  tag:
+    env_file: ${ENVFILE_TAG_ARTIFACT:-.env.tag-artifact}
+    network_mode: bridge
+    image: goo-images/tag-artifact
+  git:
+    network_mode: bridge
+    image: platform/build/c:1
+    working_dir: /occ/content
+    volumes:
+      - .:/occ/content
