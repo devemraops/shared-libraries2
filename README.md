@@ -21,7 +21,7 @@
 </style>
 </head>
 <body>
-  <div class="circle-text">
+  <div class="Shared Library for Continuous Integration Pipeline">
     <h1>Shared Library for Continuous Integration Pipeline</h1>
   </div>
 </body>
