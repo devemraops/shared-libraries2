@@ -1,4 +1,32 @@
-<h1>Shared Library for Continuous Integration Pipeline</h1>
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .circle-text {
+    width: 300px;
+    height: 300px;
+    border: 2px solid #333;
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .circle-text h1 {
+    text-align: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="circle-text">
+    <h1>Shared Library for Continuous Integration Pipeline</h1>
+  </div>
+</body>
+</html>
+
 
 <p>This shared library is designed to streamline the Continuous Integration (CI) pipeline for your projects. It provides a set of reusable stages to ensure code quality, security, and artifact management. Below is an overview of the pipeline stages and their purposes:</p>
 
