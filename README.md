@@ -1,37 +1,57 @@
-![Alt text](image-1.png)
-# Ovation Environment Management
-### Overview
-`This Jenkins Shared Library is designed to streamline and standardize CI processes across multiple Gradle projects in our organization. It encapsulates common Jenkins pipeline steps, utilities, and configurations, making them reusable and easy to maintain.`
-#### Gradle Jenkins Shared Library 
+<h1>Shared Library for Continuous Integration Pipeline</h1>
 
-In Jenkins, a shared library is typically structured in a specific way to be recognized and used across different Jenkins pipelines. For the requirements, here's how our shared library structure might look and what files to include:
+<p>This shared library is designed to streamline the Continuous Integration (CI) pipeline for your projects. It provides a set of reusable stages to ensure code quality, security, and artifact management. Below is an overview of the pipeline stages and their purposes:</p>
 
-1. **vars/**
-    - This directory is where you put global shared pipeline steps. These steps can be called directly in a Jenkinsfile without needing to instantiate the library class. 
-    - Files to include based on the functionalities you mentioned:
-        - **decisionWrapper.groovy**: Contains the logic for the decision-making step.
-        - **gradleUnitTest.groovy**: Contains the logic to run unit tests.
-        - **gradleIntegrationTest.groovy**: Contains the logic to run integration tests.
-        - **runHelmLint.groovy**: Contains the logic for Helm Lint.
-        - **buildImage.groovy**: Contains the logic to build Docker images.
-        - **blackduckScan.groovy**: Contains the logic to scan with Blackduck.
-        - **veracodeScan.groovy**: Contains the logic to scan with Veracode.
-        - **pushToArtifactory.groovy**: Contains the logic to push images to Artifactory.
-        - **cleanupWorkspace.groovy**: Contains the logic to clean up the Jenkins workspace.
+<h2>Pipeline Stages</h2>
 
-2. **src/** 
-    - This directory is typically where you place Groovy source code that's intended to be called from your pipeline steps in `vars/`. These could be helper functions, classes, etc.
-    - You can have packages with classes, for instance:
-        - **com/example/Utilities.groovy**: A class containing utility functions that can be used across different steps.
+<!-- ... [Previous Stages Information] ... -->
 
-3. **resources/** 
-    - This directory can store non-Groovy files you might need in your pipeline, such as property files, templates, etc. They can be loaded in your pipeline steps.
-    - For example:
-        - **templates/deployment.yaml**: If you have template files for Kubernetes deployment that you'd like to process during your pipeline.
+<h2>Required Parameters</h2>
 
-4. **Jenkinsfile**
-    - This is optional but is useful if you want to have a Jenkins job that tests the shared library itself, for instance, to validate that the steps are defined correctly.
+<p>Before using this shared library in your Jenkins pipeline, ensure that you provide the following parameters:</p>
 
-When you've added these files and directories to your shared library repository, you can load the library in a Jenkins pipeline using the `@Library` annotation, and then leverage the steps defined in the `vars/` directory directly within your Jenkinsfile. 
+<table>
+  <tr>
+    <th>Parameter</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>APP_ID</code> (Required)</td>
+    <td>The name of your JAR file and Helm chart.</td>
+  </tr>
+  <tr>
+    <td><code>IMAGE_GROUP</code> (Required)</td>
+    <td>The name of the image group in Artifactory.</td>
+  </tr>
+  <tr>
+    <td><code>HELM_REPO</code> (Not Required)</td>
+    <td>The name of the Helm repository in Artifactory (optional).</td>
+  </tr>
+  <tr>
+    <td><code>VERACODE_APP_ID</code> (Required)</td>
+    <td>App ID provided by #help-app-sec for Veracode integration.</td>
+  </tr>
+  <tr>
+    <td><code>SANDBOX_NAME</code> (Required)</td>
+    <td>Sandbox name provided by #help-app-sec for Veracode integration.</td>
+  </tr>
+  <tr>
+    <td><code>BLACKDUCK_SEARCH_DEPTH</code> (Required)</td>
+    <td>Depth for scanning dependencies.</td>
+  </tr>
+  <tr>
+    <td><code>BLACKDUCK_PROJECT_NAME</code> (Required)</td>
+    <td>Name for the Black Duck project.</td>
+  </tr>
+</table>
 
-Remember to ensure you've correctly set up the shared library in Jenkins itself (through "Manage Jenkins" > "Configure System" in the Global Pipeline Libraries section).
+<h2>Usage</h2>
+
+<p>To use this shared library in your Jenkins pipeline, follow these steps:</p>
+
+<ol>
+  <li>Include the shared library in your Jenkinsfile:</li>
+</ol>
+
+<pre><code>@Library('your-shared-library') _
+</code></pre>

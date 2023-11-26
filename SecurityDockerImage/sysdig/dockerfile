@@ -1,0 +1,9 @@
+FROM openjdk11
+
+WORKDIR /app
+ARG LOCAL_SYSDIG_BINARY
+COPY ${LOCAL_SYSDIG_BINARY}/${LOCAL_SYSDIG_BINARY} /app
+
+COPY ./run_sysdig_scan.sh  /app/./run_sysdig_scan.sh 
+
+ENTRYPOINT [ "sh", "/app/run_sysdig_scan" ]

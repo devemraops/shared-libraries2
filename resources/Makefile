@@ -1,3 +1,9 @@
+
+$(eval TIMESTAMP = $(shell date +%m-%d-%Y-%T))
+ZIPFILE = report-${TIMESTAMP}.zip
+
+
+
 ifeq ($(PROPERTIES_FILE),)
 #$(error PROPERTIES_FILE is not set. Please specify the properties file.)	
     PROPERTIES_FILE := build.properties
