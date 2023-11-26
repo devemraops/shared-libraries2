@@ -21,11 +21,12 @@
 </style>
 </head>
 <body>
-  <div class="Shared Library for Continuous Integration Pipeline">
+  <div class="circle-text">
     <h1>Shared Library for Continuous Integration Pipeline</h1>
   </div>
 </body>
 </html>
+
 
 
 <p>This shared library is designed to streamline the Continuous Integration (CI) pipeline for your projects. It provides a set of reusable stages to ensure code quality, security, and artifact management. Below is an overview of the pipeline stages and their purposes:</p>
